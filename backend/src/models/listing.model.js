@@ -79,10 +79,6 @@ const listingSchema = new mongoose.Schema(
     },
     reviewedAt: { type: Date },
     publishedAt: { type: Date },
-    createdAt: {
-      type: Date,
-      default: Date.now,
-    },
   },
   {
     timestamps: true,

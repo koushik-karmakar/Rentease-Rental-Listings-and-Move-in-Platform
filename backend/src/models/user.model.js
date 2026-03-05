@@ -46,7 +46,7 @@ const userSchema = new mongoose.Schema(
         type: Boolean,
         default: false,
       },
-      
+
       phoneVerified: {
         type: Boolean,
         default: false,
@@ -61,11 +61,6 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["LOCAL", "GOOGLE"],
       default: "LOCAL",
-    },
-
-    createdAt: {
-      type: Date,
-      default: Date.now,
     },
   },
   { timestamps: true },

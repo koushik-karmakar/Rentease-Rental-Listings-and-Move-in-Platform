@@ -34,11 +34,6 @@ const adminSchema = new mongoose.Schema(
       enum: ["LOCAL", "GOOGLE"],
       default: "LOCAL",
     },
-
-    createdAt: {
-      type: Date,
-      default: Date.now,
-    },
   },
   {
     timestamps: true,
