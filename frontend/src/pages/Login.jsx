@@ -1,6 +1,9 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
+import { useEffect } from "react";
+import { useAuth } from "../context/AuthContext.jsx";
+import { useLocation } from "react-router-dom";
 const FontStyle = () => (
   <style>{`
     @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Nunito:wght@400;500;600;700;800;900&display=swap');
@@ -62,6 +65,7 @@ const ICONS = {
   shield: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
 };
 
+const backend = import.meta.env.VITE_CORS_ORIGIN;
 export default function LoginPage() {
   const [step, setStep] = useState("email");
   const [email, setEmail] = useState("");
@@ -78,6 +82,10 @@ export default function LoginPage() {
   const [showReg, setShowReg] = useState(false);
   const [showReg2, setShowReg2] = useState(false);
 
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from || "/";
   const fake = (ms) => new Promise((r) => setTimeout(r, ms));
 
   const handleCheckEmail = async () => {
@@ -91,17 +99,28 @@ export default function LoginPage() {
     }
     setError("");
     setLoading(true);
-    await fake(1100);
-    const user = REGISTERED.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase(),
-    );
-    setLoading(false);
-    if (user) {
-      setFoundUser(user);
-      setStep("password");
-    } else {
-      setFoundUser(null);
-      setStep("register");
+    try {
+      const { data } = await axios.post(
+        `${backend}/api/v1/auth/user/check-email`,
+        { email },
+        {
+          withCredentials: true,
+        },
+      );
+      if (data.exists) {
+        setFoundUser(data.user);
+        setStep("password");
+      } else {
+        setFoundUser(null);
+        setStep("register");
+        setRegEmail(email);
+      }
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "Something went wrong. Try again.",
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -112,13 +131,19 @@ export default function LoginPage() {
     }
     setError("");
     setLoading(true);
-    await fake(1200);
-    setLoading(false);
-    if (password === "wrong") {
-      setError("Incorrect password. Please try again.");
-      return;
+    try {
+      const { data } = await axios.post(
+        `${backend}/api/v1/auth/user/login`,
+        { email, password },
+        { withCredentials: true },
+      );
+      login(data.data.user, data.data.accessToken);
+      navigate(from, { replace: true });
+    } catch (err) {
+      setError(err.response?.data?.message || "Incorrect password. Try again.");
+    } finally {
+      setLoading(false);
     }
-    setStep("success");
   };
 
   const handleGoogle = async () => {
@@ -140,14 +165,52 @@ export default function LoginPage() {
     }
     setError("");
     setLoading(true);
-    await fake(1300);
-    setLoading(false);
-    setFoundUser({
-      name: regName,
-      avatar: regName.slice(0, 2).toUpperCase(),
-      role: "Tenant",
-    });
-    setStep("success");
+    try {
+      const { data } = await axios.post(
+        `${backend}/api/v1/auth/user/register`,
+        {
+          name: regName,
+          email: regEmail,
+          password: regPass,
+        },
+      );
+
+      login(data.data.user, data.data.accessToken);
+      navigate(from, { replace: true });
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "Registration failed. Try again.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const authCheck = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        navigate("/login");
+        return;
+      }
+
+      const { data } = await axios.get(
+        `${backend}/api/v1/auth/user/auth-check`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      if (data.data.user) {
+        // setUser(data.data.user);
+        navigate("/");
+      }
+    } catch (err) {
+      localStorage.removeItem("token");
+      navigate("/login");
+    }
   };
 
   const reset = () => {
@@ -336,7 +399,7 @@ export default function LoginPage() {
                 <button
                   onClick={handleGoogle}
                   disabled={loading}
-                  className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl border-2 border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 transition-all text-sm font-700 text-gray-700 mb-5 shadow-sm"
+                  className="cursor-pointer w-full flex items-center justify-center gap-3 py-3.5 rounded-xl border-2 border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 transition-all text-sm font-700 text-gray-700 mb-5 shadow-sm"
                 >
                   {loading ? (
                     <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full spin-anim" />
@@ -443,7 +506,6 @@ export default function LoginPage() {
           {step === "password" && foundUser && (
             <div className="sl">
               <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
-                {/* Back */}
                 <button
                   onClick={() => {
                     setStep("email");
@@ -537,7 +599,7 @@ export default function LoginPage() {
                 <button
                   onClick={handleLogin}
                   disabled={loading}
-                  className="w-full py-3.5 rounded-xl text-white font-800 text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 hover:-translate-y-0.5 shadow-md"
+                  className="cursor-pointer w-full py-3.5 rounded-xl text-white font-800 text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 hover:-translate-y-0.5 shadow-md"
                   style={{
                     background: loading
                       ? "#ccc"
@@ -564,7 +626,7 @@ export default function LoginPage() {
                 <button
                   onClick={handleGoogle}
                   disabled={loading}
-                  className="w-full flex items-center justify-center gap-3 py-3 rounded-xl border-2 border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 transition-all text-sm font-700 text-gray-700 shadow-sm"
+                  className="cursor-pointer w-full flex items-center justify-center gap-3 py-3 rounded-xl border-2 border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 transition-all text-sm font-700 text-gray-700 shadow-sm"
                 >
                   <svg width={18} height={18} viewBox="0 0 48 48">
                     <path
@@ -586,10 +648,6 @@ export default function LoginPage() {
                   </svg>
                   Sign in with Google instead
                 </button>
-
-                <p className="text-center text-xs text-gray-400 mt-4 font-600">
-                  💡 Use any password (type "wrong" to test error)
-                </p>
               </div>
             </div>
           )}
@@ -601,6 +659,10 @@ export default function LoginPage() {
                   onClick={() => {
                     setStep("email");
                     setError("");
+                    setRegName("");
+                    setRegEmail("");
+                    setRegPass("");
+                    setRegPass2("");
                   }}
                   className="flex items-center gap-1.5 text-xs font-700 text-gray-400 hover:text-gray-700 transition-colors mb-5"
                 >
@@ -788,7 +850,7 @@ export default function LoginPage() {
                   <button
                     onClick={handleRegister}
                     disabled={loading}
-                    className="w-full py-3.5 rounded-xl text-white font-800 text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 hover:-translate-y-0.5 shadow-md mt-1"
+                    className="cursor-pointer w-full py-3.5 rounded-xl text-white font-800 text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 hover:-translate-y-0.5 shadow-md mt-1"
                     style={{
                       background: loading
                         ? "#ccc"
@@ -819,7 +881,7 @@ export default function LoginPage() {
                   <button
                     onClick={handleGoogle}
                     disabled={loading}
-                    className="w-full flex items-center justify-center gap-3 py-3 rounded-xl border-2 border-gray-200 bg-white hover:bg-gray-50 transition-all text-sm font-700 text-gray-700 shadow-sm"
+                    className="cursor-pointer w-full flex items-center justify-center gap-3 py-3 rounded-xl border-2 border-gray-200 bg-white hover:bg-gray-50 transition-all text-sm font-700 text-gray-700 shadow-sm"
                   >
                     <svg width={18} height={18} viewBox="0 0 48 48">
                       <path
@@ -909,7 +971,8 @@ export default function LoginPage() {
                 </div>
 
                 <button
-                  className="w-full py-3.5 rounded-xl text-white font-800 text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 hover:-translate-y-0.5 shadow-md mb-3"
+                  onClick={authCheck}
+                  className="cursor-pointer w-full py-3.5 rounded-xl text-white font-800 text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 hover:-translate-y-0.5 shadow-md mb-3"
                   style={{
                     background: "linear-gradient(135deg,#FE6702,#e55500)",
                   }}
@@ -919,7 +982,7 @@ export default function LoginPage() {
 
                 <button
                   onClick={reset}
-                  className="w-full py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-700 text-sm hover:bg-gray-50 transition-all"
+                  className="cursor-pointer w-full py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-700 text-sm hover:bg-gray-50 transition-all"
                 >
                   Sign in as different user
                 </button>
