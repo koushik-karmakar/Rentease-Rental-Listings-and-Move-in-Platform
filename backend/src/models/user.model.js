@@ -14,7 +14,6 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      unique: true,
       lowercase: true,
     },
 
@@ -29,8 +28,8 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["CUSTOMER", "OWNER"],
-      default: "CUSTOMER",
+      enum: ["TENANT", "OWNER"],
+      default: "TENANT",
     },
 
     avatar: {
@@ -66,6 +65,8 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+userSchema.index({ email: 1, role: 1 }, { unique: true });
+
 userSchema.pre("save", async function () {
   if (!this.isModified("password") || !this.password) return;
   this.password = await bcrypt.hash(this.password, 10);

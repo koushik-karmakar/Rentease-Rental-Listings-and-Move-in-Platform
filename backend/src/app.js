@@ -22,7 +22,9 @@ app.use(cookieParser());
 
 /* ===================== API ======================= */
 import { authRouter } from "./routes/auth.route.js";
+import { ownerRoute } from "./routes/owner.route.js";
 app.use("/api/v1/auth/user", authRouter);
+app.use("/api/v1/auth/owner", ownerRoute);
 /* ===================== ERROR HANDLER ======================= */
 app.use((err, req, res, next) => {
   console.error(err);
