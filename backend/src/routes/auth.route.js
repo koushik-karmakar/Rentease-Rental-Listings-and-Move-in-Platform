@@ -5,10 +5,11 @@ import {
   registerUser,
   checkEmail,
   checkAuth,
-} from "../controllers/user.controller.js";
+} from "../controllers/auth.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 authRouter.route("/login").post(loginUser);
 authRouter.route("/register").post(registerUser);
 authRouter.route("/check-email").post(checkEmail);
 authRouter.route("/auth-check").get(verifyJWT, checkAuth);
+
 export { authRouter };
